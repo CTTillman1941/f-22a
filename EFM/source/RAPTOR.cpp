@@ -334,11 +334,11 @@ void ed_fm_simulate(double dt) {
         RAPTOR::landing_brake_assist = limit(actuator(RAPTOR::landing_brake_assist, 0.0, -0.008, 0.007), 0.0, 1.0);
     }
 
-    Vec3 left_wing_forces(-Drag * 0.8 * drag_direction * (-aos_effect + 1) * q * (RAPTOR::S / 2) * RAPTOR::left_wing_integrity,
+    Vec3 left_wing_forces(-Drag * 0.8 * drag_direction * (-aos_effect + 1) * q * (RAPTOR::S / 2),
         Lift * 0.8 * (-aos_effect / 2 + 1) * q * (RAPTOR::S / 2) * RAPTOR::left_wing_integrity,
         //0);
         Cy_tail * q * (RAPTOR::S / 2) * RAPTOR::left_wing_integrity);
-    Vec3 right_wing_forces(-Drag * 0.8 * drag_direction * (aos_effect + 1) * q * (RAPTOR::S / 2) * RAPTOR::right_wing_integrity,
+    Vec3 right_wing_forces(-Drag * 0.8 * drag_direction * (aos_effect + 1) * q * (RAPTOR::S / 2),
         Lift * 0.8 * (aos_effect / 2 + 1) * q * (RAPTOR::S / 2) * RAPTOR::right_wing_integrity,
         //0);
         -Cy_tail * q * (RAPTOR::S / 2) * RAPTOR::right_wing_integrity);
@@ -533,7 +533,7 @@ void ed_fm_simulate(double dt) {
         double target_tv_pitch_angle = -tv_pitch_command * RAPTOR::rad(max_tv_pitch_deflection);
         double tv_pitch_step = tv_pitch_rate * dt;
 
-        constexpr bool roll_assist_tv_enabled = false;
+        constexpr bool roll_assist_tv_enabled = true;
 
         if (roll_assist_tv_enabled)
         {
