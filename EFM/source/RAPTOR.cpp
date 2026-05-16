@@ -46,13 +46,7 @@ struct MassChange
     Vec3 moi;
 };
 
-struct DamageEvent {
-    int element_number;
-    double integrity_factor;
-};
-
 std::stack<MassChange> g_mass_changes;
-std::queue<DamageEvent> g_damage_events;
 
 void add_local_force(const Vec3& Force, const Vec3& Force_pos) {
     RAPTOR::common_force.x += Force.x;
@@ -341,30 +335,39 @@ void ed_fm_simulate(double dt) {
         RAPTOR::landing_brake_assist = limit(actuator(RAPTOR::landing_brake_assist, 0.0, -0.008, 0.007), 0.0, 1.0);
     }
 
-    Vec3 left_wing_forces(-Drag * 0.8 * drag_direction * (-aos_effect + 1) * q * (RAPTOR::S / 2),
-        Lift * 0.8 * (-aos_effect / 2 + 1) * q * (RAPTOR::S / 2) * RAPTOR::left_wing_integrity,
-        //0);
-        Cy_tail * q * (RAPTOR::S / 2) * RAPTOR::left_wing_integrity);
-    Vec3 right_wing_forces(-Drag * 0.8 * drag_direction * (aos_effect + 1) * q * (RAPTOR::S / 2),
-        Lift * 0.8 * (aos_effect / 2 + 1) * q * (RAPTOR::S / 2) * RAPTOR::right_wing_integrity,
-        //0);
-        -Cy_tail * q * (RAPTOR::S / 2) * RAPTOR::right_wing_integrity);
-    Vec3 fuselage_forces(-Drag * 0.3 * drag_direction * q * (RAPTOR::S / 2),
-        Lift * 0.4 * q * (RAPTOR::S / 2),
-        0);
+    add_local_force(
+        Vec3(
+            -Drag * 0.8 * drag_direction * (-aos_effect + 1) * q * (RAPTOR::S / 2),
+            Lift * 0.8 * (-aos_effect / 2 + 1) * q * (RAPTOR::S / 2) * RAPTOR::left_wing_integrity,
+            //0);
+            Cy_tail * q * (RAPTOR::S / 2) * RAPTOR::left_wing_integrity),
+        RAPTOR::left_wing_pos);
+    add_local_force(
+        Vec3(
+            -Drag * 0.8 * drag_direction * (aos_effect + 1) * q * (RAPTOR::S / 2),
+            Lift * 0.8 * (aos_effect / 2 + 1) * q * (RAPTOR::S / 2) * RAPTOR::right_wing_integrity,
+            //0);
+            -Cy_tail * q * (RAPTOR::S / 2) * RAPTOR::right_wing_integrity),
+        RAPTOR::right_wing_pos);
+    add_local_force(
+        Vec3(
+            -Drag * 0.3 * drag_direction * q * (RAPTOR::S / 2),
+            Lift * 0.4 * q * (RAPTOR::S / 2),
+            0),
+        RAPTOR::fuselage_pos);
 
-    add_local_force(left_wing_forces, RAPTOR::left_wing_pos);
-    add_local_force(right_wing_forces, RAPTOR::right_wing_pos);
-    add_local_force(fuselage_forces, RAPTOR::fuselage_pos);
-
-    Vec3 left_tail_force(-Cy_tail * sin(RAPTOR::aoa) * (RAPTOR::S / 4) * q * RAPTOR::left_tail_integrity,
-        -Cy_tail * cos(RAPTOR::aoa) * q * (RAPTOR::S / 4) * RAPTOR::left_tail_integrity * cos(rad(110)),
-        -Cy_tail * cos(RAPTOR::aoa) * q * (RAPTOR::S / 4) * RAPTOR::left_tail_integrity * sin(rad(110)));
-    Vec3 right_tail_force(-Cy_tail * sin(RAPTOR::aoa) * (RAPTOR::S / 4) * q * RAPTOR::right_tail_integrity,
-        -Cy_tail * cos(RAPTOR::aoa) * q * (RAPTOR::S / 4) * RAPTOR::right_tail_integrity * cos(rad(70)),
-        -Cy_tail * cos(RAPTOR::aoa) * q * (RAPTOR::S / 4) * RAPTOR::right_tail_integrity * sin(rad(70)));
-    add_local_force(left_tail_force, RAPTOR::left_tail_pos);
-    add_local_force(right_tail_force, RAPTOR::right_tail_pos);
+    add_local_force(
+        Vec3(
+            -Cy_tail * sin(RAPTOR::aoa) * q * (RAPTOR::S / 4) * RAPTOR::left_tail_integrity,
+            -Cy_tail * cos(RAPTOR::aoa) * q * (RAPTOR::S / 4) * RAPTOR::left_tail_integrity * cos(rad(110)),
+            -Cy_tail * cos(RAPTOR::aoa) * q * (RAPTOR::S / 4) * RAPTOR::left_tail_integrity * sin(rad(110))),
+        RAPTOR::left_tail_pos);
+    add_local_force(
+        Vec3(
+            -Cy_tail * sin(RAPTOR::aoa) * q * (RAPTOR::S / 4) * RAPTOR::right_tail_integrity,
+            -Cy_tail * cos(RAPTOR::aoa) * q * (RAPTOR::S / 4) * RAPTOR::right_tail_integrity * cos(rad(70)),
+            -Cy_tail * cos(RAPTOR::aoa) * q * (RAPTOR::S / 4) * RAPTOR::right_tail_integrity * sin(rad(70))),
+        RAPTOR::right_tail_pos);
 
     constexpr double fbw_scale = 1.0;
     double beta_gain = (RAPTOR::mach > 0.9) ? std::clamp(0.1 * (RAPTOR::mach - 0.9) / 0.3, 0.0, 0.1) : 0.0;
@@ -655,28 +658,59 @@ void ed_fm_simulate(double dt) {
             elevon_aoa_scale = limit(elevon_aoa_scale, 0.1, 1.0);
         }
 
-        add_local_force(Vec3(0, RAPTOR::left_elevon_angle * elevon_force_magnitude * elevon_aoa_scale * RAPTOR::left_elevon_integrity, 0), RAPTOR::left_elevon_pos);
-        add_local_force(Vec3(0, RAPTOR::right_elevon_angle * elevon_force_magnitude * elevon_aoa_scale * RAPTOR::right_elevon_integrity, 0), RAPTOR::right_elevon_pos);
+        add_local_force(
+            Vec3(
+                0,
+                RAPTOR::left_elevon_angle * elevon_force_magnitude * elevon_aoa_scale * RAPTOR::left_elevon_integrity,
+                0),
+            RAPTOR::left_elevon_pos);
+        add_local_force(
+            Vec3(
+                0,
+                RAPTOR::right_elevon_angle * elevon_force_magnitude * elevon_aoa_scale * RAPTOR::right_elevon_integrity,
+                0),
+            RAPTOR::right_elevon_pos);
 
         double aileron_deflection = RAPTOR::aileron_command * RAPTOR::rad(30);
-        add_local_force(Vec3(0, aileron_deflection * q * RAPTOR::S * 0.25 * RAPTOR::left_aileron_integrity, 0), RAPTOR::left_aileron_pos);
-        add_local_force(Vec3(0, -aileron_deflection * q * RAPTOR::S * 0.25 * RAPTOR::right_aileron_integrity, 0), RAPTOR::right_aileron_pos);
+        add_local_force(
+            Vec3(
+                0,
+                aileron_deflection * q * RAPTOR::S * 0.25 * RAPTOR::left_aileron_integrity,
+                0),
+            RAPTOR::left_aileron_pos);
+        add_local_force(
+            Vec3(
+                0,
+                -aileron_deflection * q * RAPTOR::S * 0.25 * RAPTOR::right_aileron_integrity,
+                0),
+            RAPTOR::right_aileron_pos);
+
         double rudder_deflection = RAPTOR::rudder_command * RAPTOR::rad(25 + (RAPTOR::mach < 0.5 ? 5.0 : 0.0));
-        add_local_force(Vec3(
+        add_local_force(
+            Vec3(
 				0,
 			    rudder_deflection * q * RAPTOR::S * 0.3 * 0.5 * RAPTOR::left_rudder_integrity * cos(rad(110)),
 	            rudder_deflection * q * RAPTOR::S * 0.3 * 0.5 * RAPTOR::left_rudder_integrity * sin(rad(110))),
     		RAPTOR::left_rudder_pos);
-        add_local_force(Vec3(
+        add_local_force(
+            Vec3(
 				0,
 	            rudder_deflection * q * RAPTOR::S * 0.3 * 0.5 * RAPTOR::right_rudder_integrity * cos(rad(70)),
 	            rudder_deflection * q * RAPTOR::S * 0.3 * 0.5 * RAPTOR::right_rudder_integrity * sin(rad(70))),
             RAPTOR::right_rudder_pos);
 
-        double left_tv_force = RAPTOR::left_thrust_force * RAPTOR::left_throttle_output * sin(RAPTOR::left_tv_angle);
-        double right_tv_force = RAPTOR::right_thrust_force * RAPTOR::right_throttle_output * sin(RAPTOR::right_tv_angle);
-        add_local_force(Vec3(RAPTOR::left_thrust_force * cos(RAPTOR::left_tv_angle) * RAPTOR::left_engine_integrity, left_tv_force, 0), RAPTOR::left_engine_pos);
-        add_local_force(Vec3(RAPTOR::right_thrust_force * cos(RAPTOR::right_tv_angle) * RAPTOR::right_engine_integrity, right_tv_force, 0), RAPTOR::right_engine_pos);
+        add_local_force(
+            Vec3(
+                RAPTOR::left_thrust_force * cos(RAPTOR::left_tv_angle) * RAPTOR::left_engine_integrity,
+                RAPTOR::left_thrust_force * sin(RAPTOR::left_tv_angle) * RAPTOR::left_engine_integrity,
+                0),
+            RAPTOR::left_engine_pos);
+        add_local_force(
+            Vec3(
+                RAPTOR::right_thrust_force * cos(RAPTOR::right_tv_angle) * RAPTOR::right_engine_integrity,
+                RAPTOR::right_thrust_force * sin(RAPTOR::right_tv_angle) * RAPTOR::right_engine_integrity,
+                0),
+            RAPTOR::right_engine_pos);
     }
 
     double idle_thrust = lerp(FM_DATA::mach_table.data(), FM_DATA::idle_thrust.data(), FM_DATA::mach_table.size(), RAPTOR::mach);
@@ -1666,32 +1700,31 @@ void ed_fm_on_damage(const int Element, const double element_integrity_factor) {
     if (Element >= 0 && Element < 111) {
         RAPTOR::element_integrity[Element] = element_integrity_factor;
     }
-    //g_damage_events.push({ Element, element_integrity_factor });
     if (!RAPTOR::invincible) {
-        RAPTOR::left_wing_integrity *= RAPTOR::element_integrity[static_cast<size_t>(DamageElement::WingOutLeft)] * 0.15
+        RAPTOR::left_wing_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::WingOutLeft)] * 0.15
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::WingCentreLeft)] * 0.35
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::WingInLeft)] * 0.5;
-        RAPTOR::right_wing_integrity *= RAPTOR::element_integrity[static_cast<size_t>(DamageElement::WingOutRight)] * 0.15
+        RAPTOR::right_wing_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::WingOutRight)] * 0.15
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::WingCentreRight)] * 0.35
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::WingInRight)] * 0.5;
-        RAPTOR::left_elevon_integrity *= RAPTOR::element_integrity[static_cast<size_t>(DamageElement::ElevatorInLeft)] * 0.6
+        RAPTOR::left_elevon_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::ElevatorInLeft)] * 0.6
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::ElevatorOutLeft)] * 0.4;
-        RAPTOR::right_elevon_integrity *= RAPTOR::element_integrity[static_cast<size_t>(DamageElement::ElevatorInRight)] * 0.6
+        RAPTOR::right_elevon_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::ElevatorInRight)] * 0.6
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::ElevatorOutRight)] * 0.4;
-        RAPTOR::left_tail_integrity *= RAPTOR::element_integrity[static_cast<size_t>(DamageElement::TailLeft)] * 0.9
+        RAPTOR::left_tail_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::TailLeft)] * 0.9
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::RudderLeft)] * 0.1;
-        RAPTOR::right_tail_integrity *= RAPTOR::element_integrity[static_cast<size_t>(DamageElement::TailRight)] * 0.9
+        RAPTOR::right_tail_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::TailRight)] * 0.9
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::RudderRight)] * 0.1;;
-        RAPTOR::left_aileron_integrity *= RAPTOR::element_integrity[static_cast<size_t>(DamageElement::AileronLeft)];
-        RAPTOR::right_aileron_integrity *= RAPTOR::element_integrity[static_cast<size_t>(DamageElement::AileronRight)];
-        RAPTOR::left_flap_integrity *= RAPTOR::element_integrity[static_cast<size_t>(DamageElement::FlapInLeft)] * 0.4
+        RAPTOR::left_aileron_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::AileronLeft)];
+        RAPTOR::right_aileron_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::AileronRight)];
+        RAPTOR::left_flap_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::FlapInLeft)] * 0.4
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::FlapCentreLeft)] * 0.3
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::FlapOutLeft)] * 0.3;
-        RAPTOR::right_flap_integrity *= RAPTOR::element_integrity[static_cast<size_t>(DamageElement::FlapInRight)] * 0.4
+        RAPTOR::right_flap_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::FlapInRight)] * 0.4
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::FlapCentreRight)] * 0.3
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::FlapOutRight)] * 0.3;
-        RAPTOR::left_rudder_integrity *= RAPTOR::element_integrity[static_cast<size_t>(DamageElement::RudderLeft)];
-        RAPTOR::right_rudder_integrity *= RAPTOR::element_integrity[static_cast<size_t>(DamageElement::RudderRight)];
+        RAPTOR::left_rudder_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::RudderLeft)];
+        RAPTOR::right_rudder_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::RudderRight)];
         RAPTOR::left_engine_integrity = RAPTOR::element_integrity[static_cast<size_t>(DamageElement::NacelleLeftBottom)] * 0.15
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::NacelleLeft)] * 0.15
             + RAPTOR::element_integrity[static_cast<size_t>(DamageElement::Engine1)] * 0.7;
@@ -1703,21 +1736,9 @@ void ed_fm_on_damage(const int Element, const double element_integrity_factor) {
 
 void ed_fm_repair() {
     for (double& i : RAPTOR::element_integrity) i = 1;
-    while (!g_damage_events.empty()) g_damage_events.pop();
 }
 
 bool ed_fm_pop_simulation_event(ed_fm_simulation_event& out) {
-
-    if (!g_damage_events.empty()) {
-        const auto [element_number, integrity_factor] = g_damage_events.front();
-        g_damage_events.pop();
-        out.event_type = ED_FM_EVENT_STRUCTURE_DAMAGE;
-        out.event_params[0] = static_cast<double>(element_number);
-        out.event_params[1] = integrity_factor;
-        out.event_message[0] = '\0';
-
-        return true;
-    }
     out.event_type = ED_FM_EVENT_INVALID;
     return false;
 }
@@ -1750,7 +1771,6 @@ void ed_fm_cold_start() {
     RAPTOR::left_engine_integrity = RAPTOR::right_engine_integrity = 1.0;
     RAPTOR::manual_trim_applied = false;
     ed_fm_repair();
-    while (!g_damage_events.empty()) g_damage_events.pop();
     cockpit_manager.initialize();
 }
 
@@ -1777,7 +1797,6 @@ void ed_fm_hot_start() {
     RAPTOR::pitch = RAPTOR::roll = RAPTOR::heading = 0.0;
     RAPTOR::manual_trim_applied = false;
     ed_fm_repair();
-    while (!g_damage_events.empty()) g_damage_events.pop();
     cockpit_manager.initialize();
 
 }
@@ -1806,7 +1825,6 @@ void ed_fm_hot_start_in_air() {
     RAPTOR::autotrim_active = true;
     RAPTOR::manual_trim_applied = false;
     ed_fm_repair();
-    while (!g_damage_events.empty()) g_damage_events.pop();
     cockpit_manager.initialize();
 }
 
